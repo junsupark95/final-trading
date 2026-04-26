@@ -1,7 +1,7 @@
 """
 프리셋 전략 자동 등록
 
-이 패키지를 import하면 10개 전략이 StrategyRegistry에 자동 등록됩니다.
+이 패키지를 import하면 11개 전략이 StrategyRegistry에 자동 등록됩니다.
 """
 
 from strategy_core.preset import (
@@ -15,4 +15,5 @@ from strategy_core.preset import (
     volatility,
     mean_reversion,
     trend_filter,
+    kfive_quant,
 )

@@ -1,0 +1,149 @@
+version: "1.0"
+
+metadata:
+  name: "KFiveQuant — 5인 거장 융합 멀티시스템"
+  description: >
+    트룰라스(비상관 시스템)·웅거(KISS·변동성 돌파)·데이비(워크포워드/ATR 사이징)·
+    김민겸(한국형 팩터)·카메론(Bull Flag/Strong Close)을 융합한 4-시스템 전략.
+    A:팩터모멘텀 / B:변동성돌파 / C:RSI(2)평균회귀 / D:52주신고가+VCP
+    본 YAML 은 백테스터 단일-룰 엔진에 맞춰 가장 안정적인 서브셋(A+C 추세+평균회귀)을
+    표현하며, 풀 4-시스템 평가는 strategy_builder/strategy_11_kfive_quant 를 사용.
+  author: "kis_backtest"
+  tags:
+    - multi_system
+    - momentum
+    - mean_reversion
+    - factor
+    - vcp
+    - kfive
+
+strategy:
+  id: kfive_quant
+  category: multi_system
+
+  # 파라미터 정의 ($param_name 으로 indicators / conditions 에서 참조)
+  params:
+    long_roc_period:
+      default: 252
+      min: 60
+      max: 252
+      type: int
+      description: "[A] 장기 모멘텀 lookback (일)"
+    short_roc_period:
+      default: 20
+      min: 5
+      max: 60
+      type: int
+      description: "[A] 단기 모멘텀 lookback (일)"
+    trend_period:
+      default: 200
+      min: 50
+      max: 200
+      type: int
+      description: "장기 추세 MA"
+    rsi_period:
+      default: 2
+      min: 2
+      max: 14
+      type: int
+      description: "[C] RSI 기간"
+    rsi_oversold:
+      default: 10.0
+      min: 5.0
+      max: 30.0
+      type: float
+      description: "[C] RSI 과매도 임계"
+    rsi_exit:
+      default: 70.0
+      min: 50.0
+      max: 90.0
+      type: float
+      description: "[C] RSI 청산 임계"
+    bb_period:
+      default: 20
+      min: 10
+      max: 30
+      type: int
+      description: "[C] BB 기간"
+    bb_std:
+      default: 2.0
+      min: 1.5
+      max: 3.0
+      type: float
+      description: "[C] BB 표준편차"
+    stop_loss_pct:
+      default: 7.0
+      min: 3.0
+      max: 15.0
+      type: float
+      description: "손절 % (Davey)"
+    take_profit_pct:
+      default: 15.0
+      min: 5.0
+      max: 30.0
+      type: float
+      description: "익절 % (트레일링과 병행)"
+    trailing_pct:
+      default: 10.0
+      min: 5.0
+      max: 20.0
+      type: float
+      description: "트레일링 스탑 %"
+
+  indicators:
+    - id: roc
+      alias: roc_long
+      params:
+        period: $long_roc_period
+    - id: roc
+      alias: roc_short
+      params:
+        period: $short_roc_period
+    - id: sma
+      alias: trend_ma
+      params:
+        period: $trend_period
+    - id: rsi
+      alias: rsi_short
+      params:
+        period: $rsi_period
+    - id: bb_lower
+      alias: bb_lower
+      params:
+        period: $bb_period
+        std_dev: $bb_std
+
+  # 진입: 추세필터 + (장기·단기 모멘텀 양수) OR (RSI(2) 과매도 + BB 하단 이탈)
+  entry:
+    logic: OR
+    conditions:
+      # System A — 팩터 모멘텀
+      - indicator: roc_long
+        operator: greater_than
+        value: 0
+      # System C — RSI(2) 평균회귀 (장기추세 위에서)
+      - indicator: rsi_short
+        operator: less_than
+        value: $rsi_oversold
+
+  # 청산: RSI(2) 과매수 OR 단기 모멘텀 음전환
+  exit:
+    logic: OR
+    conditions:
+      - indicator: rsi_short
+        operator: greater_than
+        value: $rsi_exit
+      - indicator: roc_short
+        operator: less_than
+        value: 0
+
+risk:
+  stop_loss:
+    enabled: true
+    percent: 7.0
+  take_profit:
+    enabled: true
+    percent: 15.0
+  trailing_stop:
+    enabled: true
+    percent: 10.0
